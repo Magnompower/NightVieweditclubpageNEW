@@ -1,19 +1,8 @@
-import {
-    arrayUnion,
-    collection,
-    db,
-    doc,
-    getDocs,
-    getDownloadURL,
-    getStorage,
-    ref,
-    updateDoc
-} from '/js/api/firebase-api.js';
-import {checkSession, clearSession, getClubSession, getSession, saveClubSession} from "/js/utilities/session.js";
+import {arrayUnion, db, doc, getDownloadURL, getStorage, ref, updateDoc} from '/js/api/firebase-api.js';
+import {clearSession, getClubSession, getSession, saveClubSession} from "/js/utilities/session.js";
 import {getAllVisibleLocations, isDataInitialized} from "/js/utilities/global.js";
 import {toTitleCase} from "/js/utilities/utility.js";
-import {databaseCollections, actualRoles} from "/js/utilities/constants.js";
-import {init} from "/js/utilities/init.js";
+import {databaseCollections} from "/js/utilities/constants.js";
 
 class NavBar extends HTMLElement {
     connectedCallback() {
@@ -233,9 +222,17 @@ class NavBar extends HTMLElement {
         }));
 
         selector.innerHTML = '';
+
         const addClubOption = document.createElement('option');
         addClubOption.value = 'add-new';
-        addClubOption.textContent = '➕ Add Location';
+
+        const isAdmin = getSession().role === 'admin';
+        const approvedClubCount = getAllVisibleLocations().length;
+        const newClubCount = 0; //TODO find all in neClubs;
+
+        addClubOption.textContent = isAdmin
+            ? `➕ Add Location (${approvedClubCount}${newClubCount > 0 ? ' + ' + newClubCount : ''})`
+            : '➕ Add Location';
         selector.appendChild(addClubOption);
 
         validClubs.sort((a, b) => a.name.localeCompare(b.name));

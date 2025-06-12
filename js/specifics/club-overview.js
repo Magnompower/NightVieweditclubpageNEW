@@ -1,5 +1,5 @@
     //club-overview.js
-    
+
     import {
         analytics,
         collection,
@@ -18,15 +18,21 @@
         updateNewLocations,
         uploadImageToFirestore
     } from "/js/api/firebase-api.js";
-    import {CLUB_TYPES_ENGLISH, databaseCollections, databaseStorage, days, swalTypes} from "/js/utilities/constants.js";
+    import {
+        CLUB_TYPES_ENGLISH,
+        databaseCollections,
+        databaseStorage,
+        days,
+        swalTypes
+    } from "/js/utilities/constants.js";
     import {getAllVisibleLocations, isDataInitialized, setAllVisibleLocations} from "/js/utilities/global.js";
     import {checkSession, getClubSession, getSession} from "/js/utilities/session.js";
     import {updateIPhoneDisplay} from "/js/specifics/iphone-display-updater.js";
     import {FontSelector} from "/js/utilities/fontselector.js";
-    import {convertToWebP, getTodayKey, nameFormatter, toTitleCase} from "/js/utilities/utility.js";
+    import {convertToWebP, formatGeoCoord, getTodayKey, nameFormatter, toTitleCase} from "/js/utilities/utility.js";
     import {showAlert} from "/js/utilities/custom-alert.js";
     import {hideLoading, showLoading} from "/js/utilities/loading-indicator.js";
-    
+
     export let mainOfferImgUrl;
     let localClubData; // Local copy of the specific club’s data, initialized later
     let localOfferImages = {};
@@ -36,8 +42,9 @@
     let originalMainOfferImgUrl;
     let pendingLogoBlob = null;
     let pendingLogoFilename = null;
-    
-    
+
+    let cornerCount = 4; // You already have 4 defined statically
+
     // DOMContentLoaded event listener for initial setup
     document.addEventListener("DOMContentLoaded", async () => {
         if (!checkSession()) {
@@ -53,10 +60,34 @@
         };
     
         if (isDataInitialized()) {
-            initialize();
+            await initialize();
         } else {
             window.addEventListener('dataInitialized', initialize, {once: true});
         }
+
+        //TODO NEEDS REMOVE BUTTON CORNER
+        document.getElementById("addCornerBtn").addEventListener("click", () => {
+            cornerCount++;
+            const container = document.getElementById("corners-container");
+
+            const fieldDiv = document.createElement("div");
+            fieldDiv.className = "field-item";
+
+            const label = document.createElement("label");
+            label.setAttribute("for", `corner${cornerCount}`);
+            label.textContent = `Corner ${cornerCount} (lat, lon)`;
+
+            const input = document.createElement("input");
+            input.type = "text";
+            input.id = `corner${cornerCount}`;
+            input.placeholder = "e.g., 45.1, 58.1";
+            input.pattern = "^-?\\d+(\\.\\d+)?\\s*,\\s*-?\\d+(\\.\\d+)?$";
+
+            fieldDiv.appendChild(label);
+            fieldDiv.appendChild(input);
+
+            container.insertBefore(fieldDiv, document.getElementById("addCornerBtn"));
+        });
     });
     
     // Log page view event for analytics
@@ -143,7 +174,7 @@
     
             // Header Section
             const clubNameH1 = document.querySelector(".header-title");
-            if (clubNameH1) clubNameH1.textContent = clubData.name;
+            if (clubNameH1) clubNameH1.textContent = toTitleCase(clubData.name);
     
             const clubLogoImg = document.getElementById("clubLogoImg");
             if (clubLogoImg) {
@@ -184,45 +215,35 @@
             }
     
             // Location Section
-            const lat = document.getElementById("lat");
-            if (lat) lat.value = club.lat ?? "";
-    
-            const lon = document.getElementById("lon");
-            if (lon) lon.value = club.lon ?? "";
-    
-    // Process corners into GeoPoint objects
-            localClubData.corners = Array.isArray(club.corners)
-                ? club.corners.map(corner => {
-                    if (corner instanceof GeoPoint) {
-                        return corner;
-                    } else if (Array.isArray(corner)) {
-                        return new GeoPoint(corner[0], corner[1]);
-                    } else if (corner && typeof corner === 'object' && '_lat' in corner && '_long' in corner) {
-                        return new GeoPoint(corner._lat, corner._long);
-                    } else if (corner && typeof corner === 'object' && 'latitude' in corner && 'longitude' in corner) {
-                        // Handle the case where corner has latitude and longitude properties
-                        return new GeoPoint(corner.latitude, corner.longitude);
-                    }
-                    return null;
-                }).filter(c => c !== null && c.latitude != null && c.longitude != null)
-                : [];
-    
-    // Populate the corner inputs
-            if (localClubData.corners.length > 0) {
-                localClubData.corners.forEach((corner, index) => {
-                    const latInput = document.getElementById(`corner${index + 1}-lat`);
-                    const lonInput = document.getElementById(`corner${index + 1}-lon`);
-                    if (latInput) latInput.value = corner.latitude ?? "";
-                    if (lonInput) lonInput.value = corner.longitude ?? "";
-                });
-            } else {
-                for (let i = 1; i <= 4; i++) {
-                    const latInput = document.getElementById(`corner${i}-lat`);
-                    const lonInput = document.getElementById(`corner${i}-lon`);
-                    if (latInput) latInput.value = "";
-                    if (lonInput) lonInput.value = "";
-                }
+
+            const entranceInput = document.getElementById("entrance");
+            if (entranceInput && club.lat != null && club.lon != null) {
+                entranceInput.value = `${club.lat}, ${club.lon}`;
             }
+
+
+            const cornersContainer = document.getElementById("corners-container");
+
+            // Clear all dynamically added extra corner inputs (preserve first 4)
+            cornersContainer.querySelectorAll(".field-item").forEach((el, i) => {
+                if (i >= 4) el.remove();
+            });
+
+            localClubData.corners.forEach((corner, index) => {
+                let input = document.getElementById(`corner${index + 1}`);
+
+                // Dynamically add if it doesn't exist yet
+                if (!input) {
+                    document.getElementById("addCornerBtn")?.click(); // Simulates user clicking add
+                    input = document.getElementById(`corner${index + 1}`);
+                }
+
+                if (input && corner?.latitude != null && corner?.longitude != null) {
+                    input.value = `${formatGeoCoord(corner.latitude)}, ${formatGeoCoord(corner.longitude)}`;
+                }
+            });
+
+
             // Details Section
             const maxVisitors = document.getElementById("maxVisitors");
             if (maxVisitors) maxVisitors.value = club.total_possible_amount_of_visitors ?? "";
@@ -246,7 +267,6 @@
             }
     
             // Weekdays Section
-            const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
             days.forEach((day) => {
                 const hoursElement = document.getElementById(`${day}-hours`);
                 const ageElement = document.getElementById(`${day}-age`);
@@ -493,11 +513,17 @@
     }
     
     function resetData(clubId) {
-        showLoading();
-        loadData(clubId)
-        hideLoading();
-        return;
-    //     // loadData(clubId, true);
+        if (clubId === "add-new") {
+            prepareNewClubForm();
+        } else {
+            showLoading();
+
+
+            loadData(clubId)
+            hideLoading();
+            return;
+        }
+        //     // loadData(clubId, true);
     //     // return
     //
     //     // Restore local variables to original state
@@ -607,7 +633,6 @@
     //     if (fontSelect) fontSelect.value = originalDbData.font || "NightView Font";
     //
     //     // Reset weekdays section
-    //     const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
     //     days.forEach((day) => {
     //         const hoursElement = document.getElementById(`${day}-hours`);
     //         const ageElement = document.getElementById(`${day}-age`);
@@ -728,21 +753,40 @@
         localClubData.primary_color = document.getElementById("primaryColor").value;
         localClubData.secondary_color = document.getElementById("secondaryColor").value;
         localClubData.font = document.getElementById("font").value;
-        localClubData.lat = parseFloat(document.getElementById("lat").value);
-        localClubData.lon = parseFloat(document.getElementById("lon").value);
-    
-        localClubData.corners = [];
-        for (let i = 1; i <= 4; i++) {
-            const latStr = document.getElementById(`corner${i}-lat`)?.value.trim();
-            const lonStr = document.getElementById(`corner${i}-lon`)?.value.trim();
+
+        const entrance = document.getElementById("entrance")?.value.trim();
+        if (entrance) {
+            const [latStr, lonStr] = entrance.split(",").map(s => s.trim());
             const lat = parseFloat(latStr);
             const lon = parseFloat(lonStr);
+
             if (!isNaN(lat) && !isNaN(lon)) {
-                localClubData.corners.push(new GeoPoint(lat, lon));
+                localClubData.lat = lat;
+                localClubData.lon = lon;
+            } else {
+                localClubData.lat = null;
+                localClubData.lon = null;
             }
         }
-    
-    
+
+
+        localClubData.corners = [];
+        let i = 1;
+        while (true) {
+            const input = document.getElementById(`corner${i}`);
+            if (!input) break;
+            const value = input.value.trim();
+            if (value) {
+                const [latStr, lonStr] = value.split(",").map(s => s.trim());
+                const lat = parseFloat(latStr);
+                const lon = parseFloat(lonStr);
+                if (!isNaN(lat) && !isNaN(lon)) {
+                    localClubData.corners.push(new GeoPoint(lat, lon));
+                }
+            }
+            i++;
+        }
+
         // Get today's data from DOM for UI preview only
         const dayData = localClubData.opening_hours[today];
         const hoursValue = dayData && dayData.open && dayData.close
@@ -780,8 +824,7 @@
             primaryColor: document.getElementById("primaryColor"),
             secondaryColor: document.getElementById("secondaryColor"),
             font: document.getElementById("font"),
-            lat: document.getElementById("lat"),
-            lon: document.getElementById("lon")
+            entrance: document.getElementById("entrance"),
         };
     
         Object.values(inputs).forEach((input) => {
@@ -1244,7 +1287,6 @@
         }
     
         // Opening Hours
-        const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
         days.forEach(day => {
             const originalDay = originalDbData.opening_hours?.[day] || {};
             const localDay = localClubData.opening_hours?.[day] || {};
@@ -1586,6 +1628,7 @@
     }
     
     function prepareNewClubForm() {
+        showLoading();
         openLocationSection();
         console.log("Preparing new club form...");
     
@@ -1610,14 +1653,32 @@
             });
             typeOfClubSelect.value = "";
         }
-    
-        document.getElementById("lat").value = "";
-        document.getElementById("lon").value = "";
+
+        document.getElementById("entrance").value = "";
+
+        const container = document.getElementById("corners-container");
+        // Clear all existing corner inputs
+        container.querySelectorAll(".field-item").forEach(el => el.remove());
     
         for (let i = 1; i <= 4; i++) {
-            document.getElementById(`corner${i}-lat`).value = "";
-            document.getElementById(`corner${i}-lon`).value = "";
+            const fieldDiv = document.createElement("div");
+            fieldDiv.className = "field-item";
+
+            const label = document.createElement("label");
+            label.setAttribute("for", `corner${i}`);
+            label.textContent = `Corner ${i} (lat, lon)`;
+
+            const input = document.createElement("input");
+            input.type = "text";
+            input.id = `corner${i}`;
+            input.placeholder = "e.g., 45.1, 58.1";
+            input.pattern = "^-?\\d+(\\.\\d+)?\\s*,\\s*-?\\d+(\\.\\d+)?$";
+
+            fieldDiv.appendChild(label);
+            fieldDiv.appendChild(input);
+            container.insertBefore(fieldDiv, document.getElementById("addCornerBtn"));
         }
+        cornerCount = localClubData.corners.length || 4;
     
         document.getElementById("maxVisitors").value = "";
         document.getElementById("entryPrice").value = "0";
@@ -1697,6 +1758,7 @@
         bindLeftInputs();
         setupTagSelection(); // Already present, just ensuring it's after localClubData initialization
         syncAndUpdatePreview();
+        hideLoading();
     }
     
     
@@ -1766,8 +1828,7 @@
     function calculateEntryPriceAndAgeAndResetDaily() {
         const ageCounts = {};
         // const priceCounts = {};
-        const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-    
+
         // Step 1: Count existing age and price values
         days.forEach(day => {
             const dayData = localClubData.opening_hours?.[day];
@@ -1856,35 +1917,36 @@
         if (isNaN(localClubData.entry_price) || localClubData.entry_price < 0) errors.push("Entry price must be a non-negative number.");
         if (isNaN(localClubData.lat) || localClubData.lat < -90 || localClubData.lat > 90) errors.push("Latitude must be between -90 and 90.");
         if (isNaN(localClubData.lon) || localClubData.lon < -180 || localClubData.lon > 180) errors.push("Longitude must be between -180 and 180.");
-    
-        const latVal = document.getElementById("lat")?.value.trim();
-        const lonVal = document.getElementById("lon")?.value.trim();
-    
-        const isStrictFloat = (val) => /^-?\d+\.\d+$/.test(val);
-    
-        if (!isStrictFloat(latVal)) {
-            errors.push("Latitude must include decimal (e.g., 44.1)");
+
+        const entranceVal = document.getElementById("entrance")?.value.trim();
+        if (!/^[-]?\d+(\.\d+)?\s*,\s*[-]?\d+(\.\d+)?$/.test(entranceVal)) {
+            errors.push("Entrance must be in format: lat, lon (e.g., 55.1124214, 12.3232344)");
         }
-        if (!isStrictFloat(lonVal)) {
-            errors.push("Longitude must include decimal (e.g., -123.5)");
-        }
-    
-    
-        // ✅ Corners must all be filled (4 sets of lat/lon)
-        let cornersComplete = true;
-        for (let i = 1; i <= 4; i++) {
-            const lat = document.getElementById(`corner${i}-lat`)?.value.trim();
-            const lon = document.getElementById(`corner${i}-lon`)?.value.trim();
-    
-            if (!lat || !lon || isNaN(parseFloat(lat)) || isNaN(parseFloat(lon)) || !isStrictFloat(lat) || !isStrictFloat(lon)) {
-                cornersComplete = false;
-                break;
+
+        const geoPointPattern = /^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/;
+
+        let filledValidCorners = 0;
+        let cornerIndex = 1;
+        while (true) {
+            const input = document.getElementById(`corner${cornerIndex}`);
+            if (!input) break;
+
+            const value = input.value.trim();
+            if (value) {
+                if (geoPointPattern.test(value)) {
+                    filledValidCorners++;
+                } else {
+                    errors.push(`Corner ${cornerIndex} has an invalid format. Use: 'lat, lon'`);
+                }
             }
+            cornerIndex++;
+        }
+
+        if (filledValidCorners < 4) {
+            errors.push("You must fill in at least 4 valid corners.");
         }
     
-        if (!cornersComplete) {
-            errors.push("All 4 corners must have valid decimal lat/lon values (e.g., 55.1, 12.3).");
-        }
+
     
         // ✅ Opening hours validation (at least 1 valid day)
         //TODO Just check for not 7xnull.
@@ -2187,10 +2249,11 @@
     
     window.addEventListener("clubChanged", () => {
         const selectedClubId = getClubSession();
-        if (selectedClubId && checkSession()) {
+        if (selectedClubId !== "add-new" && checkSession()) {
             loadData(selectedClubId);
         } else {
-            console.log("No selected club or user context available.");
+            // console.log("No selected club or user context available.");
+            prepareNewClubForm();
         }
     });
     
