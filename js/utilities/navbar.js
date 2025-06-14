@@ -33,9 +33,10 @@ class NavBar extends HTMLElement {
                 </ul>
                 <ul class="selector-container">
                     <li>
-                        <select id="club-selector">
-                            <option disabled selected>Clubs</option>
-                        </select>
+                        <div id="club-dropdown" class="dropdown">
+                            <button class="dropdown-toggle">Clubs</button>
+                            <div id="club-menu" class="dropdown-menu hidden"></div>
+                        </div>
                     </li>
                     <li>
                         <select id="user-selector">
@@ -70,6 +71,99 @@ class NavBar extends HTMLElement {
                 </div>
             </div>
             <style>
+                .dropdown {
+                    position: relative;
+                    display: inline-block;
+                }
+                .dropdown-toggle {
+                    background-color: var(--color-black);
+                    color: var(--color-white);
+                    border: 1px solid var(--night-view-green);
+                    padding: 0.4em 1em;
+                    border-radius: 5px;
+                    font-size: 1rem;
+                    font-weight: bold;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    align-items: center;
+                }
+                .dropdown-toggle:hover {
+                    background-color: var(--night-view-purple);
+                    color: var(--color-white);
+                }
+                .dropdown-toggle:focus {
+                    outline: none;
+                    border-color: var(--color-white);
+                    box-shadow: 0 0 0 2px var(--night-view-green);
+                }
+                .dropdown-menu {
+                    position: absolute;
+                    top: 100%;
+                    left: -400px;
+                    background-color: var(--color-black);
+                    border: 1px solid var(--night-view-green);
+                    border-radius: 5px;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    min-width: 350px;
+                    z-index: 1000;
+                    max-height: 700px;
+                    overflow-y: auto;
+                }
+                .dropdown-menu::-webkit-scrollbar {
+                    width: 4px;
+                }
+                .dropdown-menu::-webkit-scrollbar-thumb {
+                    background-color: var(--night-view-green);
+                    border-radius: 10px;
+                }
+                .dropdown-menu::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                .dropdown-item {
+                padding-top: 8px;
+                      text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+                    cursor: pointer;
+                    color: var(--color-white);
+                    font-weight: bold;
+                }
+                .dropdown-item:hover {
+                    background-color: var(--night-view-purple);
+                    color: var(--color-white);
+                }
+                .dropdown-item.add-new {
+                    color: var(--night-view-green);
+                    font-weight: bold;
+                }
+                .dropdown-header {
+                    padding: 8px 16px;
+                    font-weight: bold;
+                    color: var(--color-white);
+                    cursor: pointer;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .dropdown-header:hover {
+                    background-color: var(--night-view-purple);
+                    color: var(--color-white);
+                }
+                .club-list {
+                    display: none;
+                    padding-left: 16px;
+                }
+                .club-list .dropdown-item {
+    white-space: nowrap;
+}
+                .toggle-arrow::before {
+                    content: '▶';
+                    margin-right: 8px;
+                }
+                .toggle-arrow.open::before {
+                    content: '▼';
+                }
                 .profile-dropdown {
                     color: var(--night-view-green);
                     position: absolute;
@@ -80,6 +174,7 @@ class NavBar extends HTMLElement {
                     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
                     width: 8vw;
                     z-index: 999;
+                    background-color: var(--color-black);
                 }
                 .profile-dropdown ul {
                     list-style: none;
@@ -91,9 +186,11 @@ class NavBar extends HTMLElement {
                     cursor: pointer;
                     font-weight: bold;
                     font-size: large;
+                    color: var(--color-white);
                 }
                 .profile-dropdown li:hover {
                     background-color: var(--night-view-purple);
+                    color: var(--color-white);
                 }
                 .modal-overlay {
                     position: fixed;
@@ -148,6 +245,57 @@ class NavBar extends HTMLElement {
                 .search-result-item:hover {
                     background-color: #f0f0f0;
                 }
+                .status-message {
+                    padding: 1rem;
+                    border-radius: 8px;
+                    margin: 0.5rem 0;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.8rem;
+                }
+                .info-message {
+                    background: #e3f2fd;
+                    color: #1976d2;
+                    border: 1px solid #90caf9;
+                }
+                .warning-message {
+                    background: #fff3e0;
+                    color: #ef6c00;
+                    border: 1px solid #ffb74d;
+                }
+                .error-message {
+                    background: #ffebee;
+                    color: #d32f2f;
+                    border: 1px solid #ef9a9a;
+                }
+                .suggestion {
+                    font-size: 0.9em;
+                    margin-top: 0.5rem;
+                    color: inherit;
+                    opacity: 0.8;
+                }
+                .result-count {
+                    font-size: 0.9rem;
+                    color: #666;
+                    margin-bottom: 1rem;
+                    padding-bottom: 0.5rem;
+                    border-bottom: 1px solid #eee;
+                }
+                .user-email {
+                    font-weight: 500;
+                    color: #2c3e50;
+                }
+                .user-name {
+                    font-size: 0.9em;
+                    color: #7f8c8d;
+                    margin-top: 0.3rem;
+                }
+                .search-result-item:hover .user-email {
+                    color: white;
+                }
+                .search-result-item:hover .user-name {
+                    color: rgba(255,255,255,0.8);
+                }
                 .hidden {
                     display: none;
                 }
@@ -155,10 +303,17 @@ class NavBar extends HTMLElement {
 
         if (!isLoginPage) {
             // Attach event listeners immediately
-            const clubSelector = this.querySelector('#club-selector');
-            clubSelector.addEventListener('change', (event) => {
-                this.selectedClubId = event.target.value;
-                this.populateUserSelector(this.selectedClubId);
+            const clubDropdownToggle = this.querySelector('.dropdown-toggle');
+            const clubMenu = this.querySelector('#club-menu');
+
+            clubDropdownToggle.addEventListener('click', () => {
+                clubMenu.classList.toggle('hidden');
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!this.querySelector('#club-dropdown').contains(e.target)) {
+                    clubMenu.classList.add('hidden');
+                }
             });
 
             const profilePic = this.querySelector('#profile-pic');
@@ -215,7 +370,7 @@ class NavBar extends HTMLElement {
     }
 
     async populateClubSelector(uid) {
-        const selector = this.querySelector('#club-selector');
+        const menu = this.querySelector('#club-menu');
         let firstValidClubId = null;
 
         if (getAllVisibleLocations().length === 0) {
@@ -245,85 +400,119 @@ class NavBar extends HTMLElement {
                     cacheLocation(cacheKeyCountry, country);
                 } catch (error) {
                     console.error(`Failed to get location for club ${club.id}:`, error);
-                    city = 'Unknown';
-                    country = 'Unknown';
+                    city = 'Unknown city';
+                    country = 'Unknown country';
                 }
             }
             return {...club, city, country};
         });
 
         const clubsWithLocation = await Promise.all(clubDataPromises);
-        console.log('Countries:', [...new Set(clubsWithLocation.map(club => club.country))]);
 
         // Group clubs by country > city
         const countries = {};
-
         clubsWithLocation.forEach(club => {
-            const country = club.country || 'Unknown';
-            const city = club.city || 'Unknown';
-
+            const country = club.country || 'Unknown country';
+            const city = club.city || 'Unknown city';
             if (!countries[country]) countries[country] = {};
             if (!countries[country][city]) countries[country][city] = [];
-
             countries[country][city].push(club);
         });
 
-        selector.innerHTML = '';
+        menu.innerHTML = '';
 
-        const addClubOption = document.createElement('option');
-        addClubOption.value = 'add-new';
-
+        const addClubItem = document.createElement('div');
+        addClubItem.className = 'dropdown-item add-new';
         const isAdmin = getSession().role === 'admin';
         const approvedClubCount = getAllVisibleLocations().length;
         const newClubCount = 0; // TODO: find all in newClubs
-
-        addClubOption.textContent = isAdmin
+        addClubItem.textContent = isAdmin
             ? `➕ Add Location (${approvedClubCount}${newClubCount > 0 ? ' + ' + newClubCount : ''})`
             : '➕ Add Location';
-        selector.appendChild(addClubOption);
+        addClubItem.addEventListener('click', () => {
+            this.selectedClubId = 'add-new';
+            saveClubSession('add-new');
+            window.dispatchEvent(new Event('clubChanged'));
+        });
+        menu.appendChild(addClubItem);
 
-        // Sort and insert nested groups
+        // Create nested dropdown structure
         Object.keys(countries).sort().forEach(country => {
-            const cities = countries[country];
-            Object.keys(cities).sort().forEach(city => {
-                const optgroup = document.createElement('optgroup');
-                optgroup.label = `${country} – ${city}`;
+            const countryDiv = document.createElement('div');
+            const countryHeader = document.createElement('div');
+            countryHeader.className = 'dropdown-header';
+            countryHeader.innerHTML = `<span class="toggle-arrow">${country}</span>`;
+            const cityList = document.createElement('div');
+            cityList.className = 'club-list';
 
-                cities[city]
+            Object.keys(countries[country]).sort().forEach(city => {
+                const cityDiv = document.createElement('div');
+                const cityHeader = document.createElement('div');
+                cityHeader.className = 'dropdown-header';
+                cityHeader.innerHTML = `<span class="toggle-arrow">${city}</span>`;
+                const clubList = document.createElement('div');
+                clubList.className = 'club-list';
+
+                countries[country][city]
                     .sort((a, b) => a.name.localeCompare(b.name))
                     .forEach(club => {
-                        const opt = document.createElement('option');
-                        opt.value = club.id;
-                        opt.textContent = club.name;
-                        optgroup.appendChild(opt);
+                        const clubItem = document.createElement('div');
+                        clubItem.className = 'dropdown-item';
+                        clubItem.textContent = club.name;
+                        clubItem.addEventListener('click', () => {
+                            this.selectedClubId = club.id;
+                            saveClubSession(club.id);
+                            this.populateUserSelector(club.id);
+                            window.dispatchEvent(new Event('clubChanged'));
+                            menu.classList.add('hidden');
+                        });
+                        clubList.appendChild(clubItem);
                         if (!firstValidClubId) firstValidClubId = club.id;
                     });
 
-                selector.appendChild(optgroup);
+                cityDiv.appendChild(cityHeader);
+                cityDiv.appendChild(clubList);
+                cityList.appendChild(cityDiv);
+            });
+
+            countryDiv.appendChild(countryHeader);
+            countryDiv.appendChild(cityList);
+            menu.appendChild(countryDiv);
+
+            // Toggle city visibility
+            countryHeader.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const arrow = countryHeader.querySelector('.toggle-arrow');
+                const isOpen = cityList.style.display === 'block';
+                cityList.style.display = isOpen ? 'none' : 'block';
+                arrow.classList.toggle('open', !isOpen);
+            });
+
+            // Toggle club visibility within city
+            cityList.querySelectorAll('.dropdown-header').forEach(cityHeader => {
+                const clubList = cityHeader.nextElementSibling;
+                cityHeader.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const arrow = cityHeader.querySelector('.toggle-arrow');
+                    const isOpen = clubList.style.display === 'block';
+                    clubList.style.display = isOpen ? 'none' : 'block';
+                    arrow.classList.toggle('open', !isOpen);
+                });
             });
         });
 
-
-
         const storedClubId = getClubSession();
-        if (storedClubId && selector.querySelector(`option[value="${storedClubId}"]`)) {
-            selector.value = storedClubId;
+        if (storedClubId && clubsWithLocation.find(club => club.id === storedClubId)) {
             this.selectedClubId = storedClubId;
-            this.populateUserSelector(this.selectedClubId);
+            this.populateUserSelector(storedClubId);
         } else if (firstValidClubId) {
-            selector.value = firstValidClubId;
-            saveClubSession(firstValidClubId);
             this.selectedClubId = firstValidClubId;
-            this.populateUserSelector(this.selectedClubId);
+            saveClubSession(firstValidClubId);
+            this.populateUserSelector(firstValidClubId);
             window.dispatchEvent(new Event('clubChanged'));
         }
-
-        selector.addEventListener('change', (event) => {
-            const selectedClubId = event.target.value;
-            saveClubSession(selectedClubId);
-            window.dispatchEvent(new Event('clubChanged'));
-        });
     }
+
     async populateUserSelector(clubId) {
         if (window.location.pathname.includes('index.html')) return;
 
