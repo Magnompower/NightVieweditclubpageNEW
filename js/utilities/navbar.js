@@ -1,7 +1,15 @@
 import {arrayUnion, db, doc, getDownloadURL, getStorage, ref, updateDoc} from '/js/api/firebase-api.js';
-import {clearSession, getClubSession, getSession, saveClubSession} from "/js/utilities/session.js";
+import {
+    cacheLocation,
+    clearSession,
+    getCachedLocation,
+    getClubSession,
+    getSession,
+    saveClubSession
+} from "/js/utilities/session.js";
 import {getAllVisibleLocations, isDataInitialized} from "/js/utilities/global.js";
 import {toTitleCase} from "/js/utilities/utility.js";
+import {getLocationData} from "/js/utilities/EuropeanLocationMapper.js";
 import {databaseCollections} from "/js/utilities/constants.js";
 
 class NavBar extends HTMLElement {
@@ -211,15 +219,54 @@ class NavBar extends HTMLElement {
         let firstValidClubId = null;
 
         if (getAllVisibleLocations().length === 0) {
-            //TODO Put logic here.
             await new Promise(resolve => window.addEventListener('dataInitialized', resolve, {once: true}));
         }
 
         const validClubs = getAllVisibleLocations().map(club => ({
             id: club.id,
-            name: club.displayName || toTitleCase(club.name || club.id),
-            rawData: club
+            name: club.displayName || toTitleCase(club.name) || club.id,
+            lat: club.lat,
+            lon: club.lon
         }));
+
+        // Fetch location data for each club
+        const clubDataPromises = validClubs.map(async (club) => {
+            const cacheKeyCity = `club_${club.id}_city`;
+            const cacheKeyCountry = `club_${club.id}_country`;
+            let city = getCachedLocation(cacheKeyCity);
+            let country = getCachedLocation(cacheKeyCountry);
+
+            if (!city || !country) {
+                try {
+                    const locationData = await getLocationData(club.lat, club.lon);
+                    city = locationData.city;
+                    country = locationData.country;
+                    cacheLocation(cacheKeyCity, city);
+                    cacheLocation(cacheKeyCountry, country);
+                } catch (error) {
+                    console.error(`Failed to get location for club ${club.id}:`, error);
+                    city = 'Unknown';
+                    country = 'Unknown';
+                }
+            }
+            return {...club, city, country};
+        });
+
+        const clubsWithLocation = await Promise.all(clubDataPromises);
+        console.log('Countries:', [...new Set(clubsWithLocation.map(club => club.country))]);
+
+        // Group clubs by country > city
+        const countries = {};
+
+        clubsWithLocation.forEach(club => {
+            const country = club.country || 'Unknown';
+            const city = club.city || 'Unknown';
+
+            if (!countries[country]) countries[country] = {};
+            if (!countries[country][city]) countries[country][city] = [];
+
+            countries[country][city].push(club);
+        });
 
         selector.innerHTML = '';
 
@@ -228,21 +275,35 @@ class NavBar extends HTMLElement {
 
         const isAdmin = getSession().role === 'admin';
         const approvedClubCount = getAllVisibleLocations().length;
-        const newClubCount = 0; //TODO find all in neClubs;
+        const newClubCount = 0; // TODO: find all in newClubs
 
         addClubOption.textContent = isAdmin
             ? `➕ Add Location (${approvedClubCount}${newClubCount > 0 ? ' + ' + newClubCount : ''})`
             : '➕ Add Location';
         selector.appendChild(addClubOption);
 
-        validClubs.sort((a, b) => a.name.localeCompare(b.name));
-        validClubs.forEach(({id, name}) => {
-            const opt = document.createElement('option');
-            opt.value = id;
-            opt.textContent = name;
-            selector.appendChild(opt);
-            if (!firstValidClubId) firstValidClubId = id;
+        // Sort and insert nested groups
+        Object.keys(countries).sort().forEach(country => {
+            const cities = countries[country];
+            Object.keys(cities).sort().forEach(city => {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = `${country} – ${city}`;
+
+                cities[city]
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .forEach(club => {
+                        const opt = document.createElement('option');
+                        opt.value = club.id;
+                        opt.textContent = club.name;
+                        optgroup.appendChild(opt);
+                        if (!firstValidClubId) firstValidClubId = club.id;
+                    });
+
+                selector.appendChild(optgroup);
+            });
         });
+
+
 
         const storedClubId = getClubSession();
         if (storedClubId && selector.querySelector(`option[value="${storedClubId}"]`)) {
@@ -263,7 +324,6 @@ class NavBar extends HTMLElement {
             window.dispatchEvent(new Event('clubChanged'));
         });
     }
-
     async populateUserSelector(clubId) {
         if (window.location.pathname.includes('index.html')) return;
 

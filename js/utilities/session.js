@@ -46,6 +46,14 @@ export function checkSession() {
     return true;
 }
 
+export function getCachedLocation(key) {
+    return localStorage.getItem(key);
+}
+
+export function cacheLocation(key, value) {
+    localStorage.setItem(key, value);
+}
+
 export function clearSession() {
     sessionStorage.clear();
     localStorage.clear();

@@ -128,6 +128,37 @@ textarea::placeholder{
     background-color: var(--color-black);
 }
 
+.club-dropdown {
+    position: relative;
+    display: inline-block;
+}
+.club-dropdown-toggle {
+    background: white; border: 1px solid #ccc;
+    padding: 6px 12px; cursor: pointer;
+}
+.club-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    border: 1px solid #aaa;
+    max-height: 300px;
+    overflow-y: auto;
+    min-width: 200px;
+    z-index: 1000;
+}
+.club-group-header {
+    padding: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    border-top: 1px solid #eee;
+}
+.club-city-list, .club-country-list {
+    padding-left: 10px;
+}
+.hidden { display: none; }
+
+
 
 /* Responsive Adjustments TODO */
 /*@media (max-width: 600px) {*/
