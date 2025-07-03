@@ -19,6 +19,10 @@
     text-overflow: ellipsis;
 }
 
+.field-grid .field-item.description {
+    grid-column: span 3;
+}
+
 .field-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(auto, 1fr));

@@ -54,7 +54,17 @@ class EuropeanLocationMapper {
         this.cityBoundingBoxes = {
             "København": { name: "København", country: "DK", center: [55.6761, 12.5683], bbox: [12.3683, 55.4761, 12.7683, 55.8761] },
             "Aarhus": { name: "Aarhus", country: "DK", center: [56.1567, 10.2107], bbox: [10.0107, 55.9567, 10.4107, 56.3567] },
+            "Aalborg": {
+                name: "Aalborg",
+                country: "DK",
+                center: [57.0488, 9.9217],
+                bbox: [9.7217, 56.8488, 10.1217, 57.2488]
+            },
+            "Odense": { name: "Odense", country: "DK", center: [55.4038, 10.4024], bbox: [10.2024, 55.3038, 10.6024, 55.5038] },
+            "Vejle": { name: "Vejle", country: "DK", center: [55.7113, 9.5359], bbox: [9.3359, 55.6113, 9.7359, 55.8113] },
+
             "Stockholm": { name: "Stockholm", country: "SE", center: [59.3293, 18.0686], bbox: [17.8686, 59.1293, 18.2686, 59.5293] },
+
             "Berlin": { name: "Berlin", country: "DE", center: [52.5200, 13.4050], bbox: [13.2050, 52.3200, 13.6050, 52.7200] },
             "Paris": { name: "Paris", country: "FR", center: [48.8534, 2.3488], bbox: [2.1488, 48.6534, 2.5488, 49.0534] },
             "London": { name: "London", country: "GB", center: [51.5283, -0.0833], bbox: [-0.2833, 51.3283, 0.1167, 51.7283] },
@@ -108,10 +118,10 @@ class EuropeanLocationMapper {
             const country = this.countryBoundingBoxes[countryCode];
             const [minLon, minLat, maxLon, maxLat] = country.bbox;
             if (lon >= minLon && lon <= maxLon && lat >= minLat && lat <= maxLat) {
-                return { city: "Unknown", country: country.name };
+                return { city: "Unknown city", country: country.name };
             }
         }
-        return { city: "Unknown", country: "Unknown" };
+        return {city: "Unknown city", country: "Unknown country"};
     }
 }
 
